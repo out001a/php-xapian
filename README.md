@@ -85,6 +85,12 @@ USAGE
                                       'dob'  => 'January 15, 1974')))
                     ->execute();
 
+      * You can delete a document by it's id.
+
+            $indexer = xapian_Record_Indexer::make('/opt/xapian/db')->set_read_write();
+
+            $indexer->delete(1);
+
     xapian_Query
     ------------
       * Executes searches against the Xapian index using a text query string.
@@ -102,6 +108,19 @@ USAGE
             }
 
             $query->reset();
+
+      * Supports feature flags. (see https://xapian.org/docs/apidoc/html/classXapian_1_1QueryParser.html#ae96a58a8de9d219ca3214a5a66e0407e)
+
+            $query   = xapian_Query::make('/opt/xapian/db', $dictionary);
+            $matches = $query->setFlags(XapianQueryParser::FLAG_WILDCARD)->execute('Xap* AND num:1');
+
+      * Supports sort. (see https://xapian.org/docs/apidoc/html/classXapian_1_1Enquire.html#ab10384fabd51eebd8174f916563e3f7a)
+
+            $query   = xapian_Query::make('/opt/xapian/db', $dictionary);
+            $matches = $query->setSorter('value',    // sort by: relevance | value | key | value_then_relevance | ....
+                                         0           // slot id
+                                         true        // reverse or not
+                            )->execute('color:blue');
 
 DEPENDENCIES
 ============

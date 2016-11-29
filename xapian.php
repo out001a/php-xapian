@@ -378,6 +378,25 @@ extends xapian_Base
         return $this;
     }
 
+    public function delete($did)
+    {
+        $did = intval($did);
+        
+        if (empty($did))
+        {
+            throw new xapian_Exception('A record cannot be delete without an '
+                                       . 'integer ID.');
+        }
+
+        $this->connect_db();
+
+        $this->db->delete_document($did);
+
+        $this->reset();
+
+        return $this;
+    }
+
     final public function set_data($data)
     {
         $this->data = $data;
@@ -429,6 +448,8 @@ extends xapian_Base
     private $match_set;
     private $match_index;
     private $num_matches;
+    private $sorters = array();
+    private $flags = XapianQueryParser::FLAG_DEFAULT;
 
     function __construct($db_path, xapian_Prefix_Dictionary $dict = null)
     {
@@ -453,6 +474,30 @@ extends xapian_Base
     // +----------------+
     // | Public Methods |
     // +----------------+
+
+    final public function setSorter($by, $sorter = null, $reverse = false)
+    {
+        $this->sorters[] = array($by, $sorter, $reverse);
+        return $this;
+    }
+
+    final public function resetSorter()
+    {
+        $this->sorters = array();
+        return $this;
+    }
+
+    final public function setFlags($flags)
+    {
+        $this->flags = $flags;
+        return $this;
+    }
+
+    final public function addFlags($flags)
+    {
+        $this->flags |= $flags;
+        return $this;
+    }
 
     final public function execute($query,
                                   $num_to_fetch = 100,
@@ -479,10 +524,20 @@ extends xapian_Base
         $this->prefix_dict
             ->configure_prefixes($this->query_parser);
 
-        $this->query = $this->query_parser->parse_query($query);
+        $this->query = $this->query_parser->parse_query($query, $this->flags);
 
         $this->enquire = new XapianEnquire($this->db);
         $this->enquire->set_query($this->query);
+
+        foreach ($this->sorters as $s)
+        {
+            list($by, $sorter, $reverse) = $s;
+            $method = "set_sort_by_{$by}";
+            if (method_exists($this->enquire, $method))
+            {
+                $this->enquire->$method($sorter, $reverse);
+            }
+        }
 
         $this->match_set =
             $this->enquire->get_mset($offset, $num_to_fetch, $check_at_least);
